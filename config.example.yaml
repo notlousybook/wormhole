@@ -1,0 +1,48 @@
+# Wormhole — config
+# API keys live in .env (next to this file), never in this config.
+#
+# Want a ready-made FREE setup (Groq, Cerebras, Gemini, Mistral, OpenRouter,
+# NVIDIA)? Use:  copy config.free.yaml config.yaml
+# It has ~10 free models preconfigured — just add keys to .env.
+
+server:
+  port: 8080
+  name: Wormhole
+
+providers:
+  # "demo" is built in: no key, no internet, works instantly.
+  - name: demo
+
+  # Real providers: use a known name and the base URL is automatic.
+  # Put the actual key in .env, referenced here by variable name.
+  - name: groq
+    key_env: GROQ_API_KEY
+
+  - name: ollama            # local, no key needed
+    # key_env omitted = no auth sent
+
+  # Any other OpenAI-compatible provider: set base_url yourself.
+  # - name: my-provider
+  #   base_url: https://api.example.com/v1
+  #   key_env: MY_PROVIDER_API_KEY
+
+models:
+  # Works immediately — no configuration required.
+  - id: demo
+    name: Demo Model
+    provider: demo
+    tags: [demo, free]
+
+  # Add your real models like this:
+  # - id: llama-3.3-70b
+  #   name: Llama 3.3 70B
+  #   provider: groq
+  #   upstream: llama-3.3-70b-versatile   # provider's actual model id
+  #   tags: [free, fast]
+  #   context: 131072
+  #   price_in: 0                         # USD per 1M tokens
+  #   price_out: 0
+
+limits:
+  # Monthly spend limit pre-filled when creating keys in the dashboard.
+  default_key_monthly_limit: 10.00

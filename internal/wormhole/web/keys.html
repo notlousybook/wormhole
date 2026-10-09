@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Keys — Wormhole</title>
+<link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+<div class="nav-wrap">
+  <nav>
+    <a class="brand" href="/"><span class="logo">◉</span>Wormhole</a>
+    <a class="link" href="/">Models</a>
+    <a class="link" href="/playground">Playground</a>
+    <a class="link" href="/keys">Keys</a>
+    <a class="link" href="/usage">Usage</a>
+    <a class="link" href="/docs">Docs</a>
+    <div class="spacer"></div>
+    <div class="status"><span class="dot"></span><span>local gateway</span></div>
+  </nav>
+</div>
+
+<main>
+  <header class="page-head">
+    <div class="eyebrow">API keys</div>
+    <h1>Access for your <em>apps</em>.</h1>
+    <p class="sub">Keys authorize external apps to call your router. The full key is shown once at creation — only a hash is stored.</p>
+  </header>
+
+  <section class="section reveal">
+    <div class="bezel lg"><div class="inner inner-pad-lg">
+      <h2 style="font-size:16px;margin-bottom:16px;">Create a key</h2>
+      <div style="display:flex;gap:12px;flex-wrap:wrap;">
+        <input type="text" id="key-name" placeholder="Key name, e.g. my-app" style="flex:1;min-width:200px;">
+        <input type="number" id="key-limit" placeholder="Monthly limit $ (optional)" step="0.01" min="0" style="width:230px;">
+        <button class="btn" id="key-create">Create key <span class="arrow">→</span></button>
+      </div>
+    </div></div>
+  </section>
+
+  <section class="section reveal">
+    <h2>Your keys</h2>
+    <div class="bezel"><div class="inner">
+      <div class="table-wrap"><table id="keys-table">
+        <thead><tr><th>Name</th><th>Key</th><th>Created</th><th>Last used</th><th>This month</th><th></th></tr></thead>
+        <tbody></tbody>
+      </table></div>
+      <div class="empty-thread" id="keys-empty" hidden><div>No keys yet.<br>Create one above to let external apps call your router.</div></div>
+    </div></div>
+  </section>
+</main>
+
+<div class="modal-backdrop" id="modal">
+  <div class="modal">
+    <h3>Key created</h3>
+    <p>Copy it now — this is the only time the full key is shown.</p>
+    <div class="key-box"><span id="modal-key"></span><button id="modal-copy">Copy</button></div>
+    <div style="display:flex;justify-content:flex-end;">
+      <button class="btn ghost" id="modal-done">Done</button>
+    </div>
+  </div>
+</div>
+
+<footer>Wormhole — your models, your keys, one endpoint.</footer>
+
+<script src="/js/common.js"></script>
+<script>
+"use strict";
+
+async function load() {
+  const keys = await api("/keys").catch(() => []);
+  const tbody = document.querySelector("#keys-table tbody");
+  tbody.innerHTML = "";
+  document.querySelector("#keys-empty").hidden = keys.length > 0;
+  for (const k of keys) {
+    const tr = document.createElement("tr");
+    const spend = k.month_spend || 0;
+    const limitTxt = k.monthly_limit > 0
+      ? "$" + spend.toFixed(2) + " / $" + k.monthly_limit.toFixed(2)
+      : "$" + spend.toFixed(2) + " · no cap";
+    tr.innerHTML = `
+      <td>${escapeHtml(k.name)}</td>
+      <td class="mono">${escapeHtml(k.prefix)}</td>
+      <td>${fmtTimeAgo(k.created)}</td>
+      <td>${fmtTimeAgo(k.last_used)}</td>
+      <td class="num">${limitTxt}</td>
+      <td style="text-align:right"><button class="btn danger sm" data-id="${k.id}">Revoke</button></td>`;
+    tbody.appendChild(tr);
+  }
+}
+
+document.querySelector("#keys-table").addEventListener("click", async (e) => {
+  const btn = e.target.closest("button[data-id]");
+  if (!btn) return;
+  if (btn.dataset.confirm !== "1") {
+    btn.dataset.confirm = "1";
+    btn.textContent = "Sure?";
+    setTimeout(() => { btn.dataset.confirm = ""; btn.textContent = "Revoke"; }, 2500);
+    return;
+  }
+  await api("/keys/" + btn.dataset.id, { method: "DELETE" });
+  toast("Key revoked");
+  load();
+});
+
+document.querySelector("#key-create").addEventListener("click", async () => {
+  const name = document.querySelector("#key-name").value.trim();
+  if (!name) { toast("Give the key a name first"); return; }
+  const monthly_limit = parseFloat(document.querySelector("#key-limit").value) || 0;
+  const res = await api("/keys", { method: "POST", body: JSON.stringify({ name, monthly_limit }) });
+  document.querySelector("#modal-key").textContent = res.key;
+  document.querySelector("#modal").classList.add("open");
+  document.querySelector("#key-name").value = "";
+  document.querySelector("#key-limit").value = "";
+  load();
+});
+
+document.querySelector("#modal-copy").addEventListener("click", () => copyText(document.querySelector("#modal-key").textContent));
+document.querySelector("#modal-done").addEventListener("click", () => document.querySelector("#modal").classList.remove("open"));
+document.querySelector("#modal").addEventListener("click", (e) => {
+  if (e.target.id === "modal") e.target.classList.remove("open");
+});
+
+load();
+</script>
+</body>
+</html>

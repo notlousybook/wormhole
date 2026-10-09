@@ -1,0 +1,146 @@
+# Wormhole — FREE setup
+# All model ids use the format: provider/modelid (like OpenRouter).
+# Everything below is free. Keyless providers work with zero setup.
+#
+#   copy config.free.yaml config.yaml
+#
+# Free keys (no credit card): put these in .env, skip what you don't want.
+#   Groq       https://console.groq.com/keys        (30 req/min, very fast)
+#   Cerebras   https://cloud.cerebras.ai            (~1M tokens/day)
+#   Mistral    https://console.mistral.ai           (~1B tokens/month, phone req)
+#   Google     https://aistudio.google.com/apikey   (Gemini, generous)
+#   OpenRouter https://openrouter.ai/keys           (rotating :free models)
+#   NVIDIA     https://build.nvidia.com             (40 req/min)
+#
+# Keyless (no key, no signup at all): pollinations, llm7, kilo, ovh.
+
+server:
+  port: 8080
+  name: Wormhole
+
+providers:
+  # Built-in demo, always works.
+  - name: demo
+
+  # ── KEYLESS: no signup, no API key ──
+  - name: pollinations   # GPT-OSS 20B reasoning, openai-compatible
+  - name: llm7           # DeepSeek V4 Flash + others, 30 req/min anonymous
+  - name: kilo           # :free models work without a key
+  - name: ovh            # Mistral Nemo, Qwen — 2 req/min anonymous
+
+  # ── KEYED: free tier, one signup each ──
+  - name: groq
+    key_env: GROQ_API_KEY
+  - name: cerebras
+    key_env: CEREBRAS_API_KEY
+  - name: google
+    key_env: GOOGLE_API_KEY
+  - name: mistral
+    key_env: MISTRAL_API_KEY
+  - name: openrouter
+    key_env: OPENROUTER_API_KEY
+  - name: nvidia
+    key_env: NVIDIA_API_KEY
+
+models:
+  - id: demo/demo
+    name: Demo Model
+    provider: demo
+    tags: [demo, free]
+
+  # ── Keyless — works right now ──
+  - id: pollinations/openai-fast
+    name: GPT-OSS 20B (Pollinations)
+    provider: pollinations
+    upstream: openai-fast
+    tags: [free, keyless, reasoning]
+    context: 131072
+  - id: llm7/deepseek-v4-flash
+    name: DeepSeek V4 Flash
+    provider: llm7
+    upstream: DeepSeek-V4-Flash-0731
+    tags: [free, keyless, reasoning]
+    context: 400000
+  - id: kilo/nemotron-3-nano
+    name: Nemotron 3 Nano 30B
+    provider: kilo
+    upstream: nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free
+    tags: [free, keyless, reasoning]
+    context: 65536
+  - id: kilo/laguna-xs
+    name: Laguna XS 2.1
+    provider: kilo
+    upstream: poolside/laguna-xs-2.1:free
+    tags: [free, keyless, fast]
+    context: 262144
+  - id: ovh/mistral-nemo
+    name: Mistral Nemo
+    provider: ovh
+    upstream: Mistral-Nemo-Instruct-2407
+    tags: [free, keyless]
+    context: 65536
+
+  # ── Keyed free tier ──
+  - id: groq/llama-3.3-70b
+    name: Llama 3.3 70B
+    provider: groq
+    upstream: llama-3.3-70b-versatile
+    tags: [free, fast]
+    context: 131072
+  - id: groq/llama-3.1-8b
+    name: Llama 3.1 8B
+    provider: groq
+    upstream: llama-3.1-8b-instant
+    tags: [free, fast]
+    context: 131072
+  - id: groq/gpt-oss-120b
+    name: GPT-OSS 120B
+    provider: groq
+    upstream: openai/gpt-oss-120b
+    tags: [free, reasoning]
+    context: 131072
+  - id: cerebras/llama-3.3-70b
+    name: Llama 3.3 70B (Cerebras)
+    provider: cerebras
+    upstream: llama-3.3-70b
+    tags: [free, fast]
+    context: 65536
+  - id: cerebras/qwen-3-32b
+    name: Qwen 3 32B
+    provider: cerebras
+    upstream: qwen-3-32b
+    tags: [free]
+    context: 65536
+  - id: google/gemini-flash
+    name: Gemini Flash
+    provider: google
+    upstream: gemini-flash-latest
+    tags: [free, fast]
+    context: 1048576
+  - id: mistral/mistral-small
+    name: Mistral Small
+    provider: mistral
+    upstream: mistral-small-latest
+    tags: [free]
+    context: 131072
+  - id: mistral/codestral
+    name: Codestral
+    provider: mistral
+    upstream: codestral-latest
+    tags: [free, code]
+    context: 262144
+  - id: openrouter/deepseek-v3
+    name: DeepSeek V3 (free)
+    provider: openrouter
+    upstream: deepseek/deepseek-chat-v3.1:free
+    tags: [free]
+    context: 163840
+  - id: nvidia/llama-3.3-70b
+    name: Llama 3.3 70B (NVIDIA)
+    provider: nvidia
+    upstream: meta/llama-3.3-70b-instruct
+    tags: [free]
+    context: 131072
+
+limits:
+  default_key_monthly_limit: 0.50

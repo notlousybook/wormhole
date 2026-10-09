@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Playground — Wormhole</title>
+<link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+<div class="nav-wrap">
+  <nav>
+    <a class="brand" href="/"><span class="logo">◉</span>Wormhole</a>
+    <a class="link" href="/">Models</a>
+    <a class="link" href="/playground">Playground</a>
+    <a class="link" href="/keys">Keys</a>
+    <a class="link" href="/usage">Usage</a>
+    <a class="link" href="/docs">Docs</a>
+    <div class="spacer"></div>
+    <div class="status"><span class="dot"></span><span>local gateway</span></div>
+  </nav>
+</div>
+
+<main>
+  <header class="page-head">
+    <div class="eyebrow">Playground</div>
+    <h1>Chat with any <em>model</em>.</h1>
+    <p class="sub">Streams through your router exactly like an API call — the same path your apps take.</p>
+  </header>
+
+  <div class="chat-layout">
+    <aside class="bezel reveal"><div class="inner settings inner-pad">
+      <div>
+        <label for="pg-model">Model</label>
+        <select id="pg-model" style="width:100%"></select>
+      </div>
+      <div>
+        <label for="pg-system">System prompt</label>
+        <textarea id="pg-system" placeholder="You are a helpful assistant."></textarea>
+      </div>
+      <div>
+        <label for="pg-temp">Temperature <span class="num" id="pg-temp-val" style="color:var(--text)">0.7</span></label>
+        <input type="range" id="pg-temp" min="0" max="2" step="0.1" value="0.7" style="width:100%">
+      </div>
+      <div class="field-row">
+        <label style="margin:0">Stream</label>
+        <div class="toggle on" id="pg-stream" role="switch" aria-checked="true" tabindex="0"></div>
+      </div>
+      <button class="btn ghost sm" id="pg-clear">Clear chat</button>
+    </div></aside>
+
+    <section class="bezel reveal" style="display:flex;flex-direction:column;">
+      <div class="thread inner" id="thread">
+        <div class="empty-thread" id="thread-empty">
+          <div>Pick a model and say hi.<br><span class="faint">Ctrl/⌘ + Enter also sends.</span></div>
+        </div>
+      </div>
+      <div class="composer">
+        <textarea id="pg-input" placeholder="Send a message…" rows="1"></textarea>
+        <button class="btn" id="pg-send">Send</button>
+      </div>
+    </section>
+  </div>
+</main>
+
+<footer>Wormhole — your models, your keys, one endpoint.</footer>
+
+<script src="/js/common.js"></script>
+<script src="/js/playground.js"></script>
+</body>
+</html>

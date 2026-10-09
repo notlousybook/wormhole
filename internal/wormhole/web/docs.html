@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Docs — Wormhole</title>
+<link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+<div class="nav-wrap">
+  <nav>
+    <a class="brand" href="/"><span class="logo">◉</span>Wormhole</a>
+    <a class="link" href="/">Models</a>
+    <a class="link" href="/playground">Playground</a>
+    <a class="link" href="/keys">Keys</a>
+    <a class="link" href="/usage">Usage</a>
+    <a class="link" href="/docs">Docs</a>
+    <div class="spacer"></div>
+    <div class="status"><span class="dot"></span><span>local gateway</span></div>
+  </nav>
+</div>
+
+<main>
+  <header class="page-head">
+    <div class="eyebrow">Documentation</div>
+    <h1>How it all <em>works</em>.</h1>
+    <p class="sub">Wormhole gives every model you configure a single OpenAI-compatible endpoint. Keys live in .env, routing lives in config.yaml, usage lives here.</p>
+  </header>
+
+  <section class="section reveal">
+    <h2>Quick start</h2>
+    <div class="bezel lg"><div class="inner inner-pad-lg">
+      <p style="color:var(--muted);margin-bottom:14px;">1. Add providers to <span class="mono">config.yaml</span> · 2. Put their API keys in <span class="mono">.env</span> · 3. Restart. The demo model works with zero setup.</p>
+      <div class="code"># .env — real provider keys, never committed
+GROQ_API_KEY=gsk_your_key_here
+OPENROUTER_API_KEY=sk_or_your_key_here</div>
+      <div style="height:12px"></div>
+      <div class="code"># config.yaml
+providers:
+  - name: groq          # known provider, base URL built in
+    key_env: GROQ_API_KEY
+models:
+  - id: llama-3.3-70b   # the name you call it by
+    provider: groq
+    upstream: llama-3.3-70b-versatile   # the provider's real name
+    tags: [free, fast]</div>
+    </div></div>
+  </section>
+
+  <section class="section reveal">
+    <h2>The wh CLI helper</h2>
+    <div class="bezel lg"><div class="inner inner-pad-lg">
+      <p style="color:var(--muted);margin-bottom:14px;">A tiny command-line client for any Wormhole server — local or shared. Build it with <span class="mono">go build -o wh.exe ./cmd/wh</span>.</p>
+      <div class="code">wh models                                     # list models
+wh chat "Explain routers"                      # chat (streams, keyless)
+wh chat "Hi" -model kilo/nemotron-3-nano       # pick a model
+wh chat "Hi" -key sk-wormhole-...                   # use your own key
+wh keys create my-app                          # create a key (local server)
+wh usage                                       # 7-day totals
+
+# point at a shared server instead of localhost:
+set WH_SERVER=https://your-server.vercel.app
+wh chat "Hello from afar"</div>
+    </div></div>
+  </section>
+
+  <section class="section reveal">
+    <h2>Call it from anywhere</h2>
+    <div class="bezel lg"><div class="inner inner-pad-lg">
+      <div class="code">curl http://localhost:8080/v1/chat/completions \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "pollinations/openai-fast",
+    "messages": [{"role": "user", "content": "Hello!"}],
+    "stream": true
+  }'
+<span class="cm"># keyless models need no Authorization header from localhost;
+# from elsewhere add: -H "Authorization: Bearer sk-wormhole-..."</span></div>
+      <div style="height:12px"></div>
+      <div class="code"><span class="cm"># Python — works with the standard OpenAI client</span>
+from openai import OpenAI
+client = OpenAI(base_url="http://localhost:8080/v1", api_key="sk-wormhole-...")
+resp = client.chat.completions.create(
+    model="pollinations/openai-fast",
+    messages=[{"role": "user", "content": "Hello!"}],
+)
+print(resp.choices[0].message.content)</div>
+    </div></div>
+  </section>
+
+  <section class="section reveal">
+    <h2>API reference</h2>
+    <div class="bezel"><div class="inner"><div class="doc-list inner-pad">
+      <div class="row"><span class="k">GET /v1/models</span><span class="d">List all configured models with pricing and context. No auth needed.</span></div>
+      <div class="row"><span class="k">POST /v1/chat/completions</span><span class="d">OpenAI-compatible chat completions. Supports streaming. Requires a key created on this site (local requests are exempt).</span></div>
+      <div class="row"><span class="k">GET /health</span><span class="d">Liveness check.</span></div>
+      <div class="row"><span class="k">GET /api/overview</span><span class="d">Dashboard stats. Localhost only.</span></div>
+    </div></div></div>
+  </section>
+
+  <section class="section reveal">
+    <h2>No key at all — keyless providers</h2>
+    <div class="bezel lg"><div class="inner inner-pad-lg">
+      <p style="color:var(--muted);margin-bottom:16px;">These need no signup and no API key — they work the second you start the router. Limits are per-IP and tight, so treat them as the free tasting menu:</p>
+      <div style="display:flex;flex-direction:column;gap:10px;" id="keyless-providers"></div>
+    </div></div>
+  </section>
+
+  <section class="section reveal">
+    <h2>Free providers — one free signup</h2>
+    <div class="bezel lg"><div class="inner inner-pad-lg">
+      <p style="color:var(--muted);margin-bottom:16px;">Grab a free key from any of these, put it in <span class="mono">.env</span>, and you have a free AI API. Easiest start: <span class="mono">copy config.free.yaml config.yaml</span> — it ships with all of them preconfigured.</p>
+      <div style="display:flex;flex-direction:column;gap:10px;" id="free-providers"></div>
+    </div></div>
+  </section>
+
+  <section class="section reveal">
+    <h2>Provider presets</h2>
+    <div class="bezel"><div class="inner inner-pad">
+      <p style="color:var(--muted);margin-bottom:12px;">Use one of these names and the base URL is filled in automatically. Any other OpenAI-compatible provider works too — just set <span class="mono">base_url</span> manually.</p>
+      <div class="doc-list" id="presets"></div>
+    </div></div>
+  </section>
+
+  <section class="section reveal">
+    <h2>Config reference</h2>
+    <div class="bezel"><div class="inner"><div class="doc-list inner-pad">
+      <div class="row"><span class="k">server.port</span><span class="d">Port to listen on (default 8080, localhost only).</span></div>
+      <div class="row"><span class="k">server.name</span><span class="d">Display name used across the dashboard and demo model.</span></div>
+      <div class="row"><span class="k">providers[].name</span><span class="d">Preset name or your own label.</span></div>
+      <div class="row"><span class="k">providers[].base_url</span><span class="d">Overrides the preset URL.</span></div>
+      <div class="row"><span class="k">providers[].key_env</span><span class="d">Name of the environment variable holding the API key. Omit for keyless local providers.</span></div>
+      <div class="row"><span class="k">models[].id</span><span class="d">Public name your apps request.</span></div>
+      <div class="row"><span class="k">models[].upstream</span><span class="d">Actual model name at the provider (defaults to id).</span></div>
+      <div class="row"><span class="k">models[].price_in / price_out</span><span class="d">USD per 1M tokens. Both zero = free (shown as Free).</span></div>
+      <div class="row"><span class="k">models[].tags</span><span class="d">free, paid, fast, local, reasoning — used by dashboard filters.</span></div>
+      <div class="row"><span class="k">limits.default_key_monthly_limit</span><span class="d">Pre-filled monthly spend cap for new keys (USD).</span></div>
+    </div></div></div>
+  </section>
+</main>
+
+<footer>Wormhole — your models, your keys, one endpoint.</footer>
+
+<script src="/js/common.js"></script>
+<script>
+"use strict";
+const PRESETS = {
+  groq: "https://api.groq.com/openai/v1",
+  openai: "https://api.openai.com/v1",
+  openrouter: "https://openrouter.ai/api/v1",
+  together: "https://api.together.xyz/v1",
+  deepseek: "https://api.deepseek.com/v1",
+  mistral: "https://api.mistral.ai/v1",
+  fireworks: "https://api.fireworks.ai/inference/v1",
+  cerebras: "https://api.cerebras.ai/v1",
+  xai: "https://api.x.ai/v1",
+  google: "https://generativelanguage.googleapis.com/v1beta/openai",
+  nvidia: "https://integrate.api.nvidia.com/v1",
+  cohere: "https://api.cohere.com/compatibility/v1",
+  sambanova: "https://api.sambanova.ai/v1",
+  huggingface: "https://router.huggingface.co/v1",
+  pollinations: "https://text.pollinations.ai/openai",
+  llm7: "https://api.llm7.io/v1",
+  kilo: "https://api.kilo.ai/api/gateway",
+  ovh: "https://oai.endpoints.kepler.ai.cloud.ovh.net/v1",
+  ollama: "http://127.0.0.1:11434/v1",
+  lmstudio: "http://127.0.0.1:1234/v1",
+};
+const box = document.querySelector("#presets");
+for (const [name, url] of Object.entries(PRESETS)) {
+  const row = document.createElement("div");
+  row.className = "row";
+  row.innerHTML = `<span class="k">${name}</span><span class="d mono">${url}</span>`;
+  box.appendChild(row);
+}
+
+/* keyless providers — no signup, no key */
+const KEYLESS = [
+  { name: "Pollinations", deal: "GPT-OSS 20B reasoning · ~1 request / 15s anonymous", model: "pollinations/openai-fast" },
+  { name: "LLM7", deal: "DeepSeek V4 Flash + others · 30 req/min anonymous", model: "llm7/deepseek-v4-flash" },
+  { name: "Kilo Gateway", deal: "17 :free models work without a key · shared pool limits", model: "kilo/nemotron-3-nano" },
+  { name: "OVHcloud", deal: "Mistral Nemo, Qwen · ~2 req/min anonymous", model: "ovh/mistral-nemo" },
+];
+const keylessBox = document.querySelector("#keyless-providers");
+for (const p of KEYLESS) {
+  const row = document.createElement("div");
+  row.style.cssText = "display:flex;align-items:center;gap:14px;padding:12px 16px;border-radius:12px;background:rgba(61,221,168,0.05);border:1px solid rgba(61,221,168,0.2);flex-wrap:wrap;";
+  row.innerHTML = `
+    <span class="tag free">keyless</span>
+    <span class="k" style="min-width:130px;">${p.name}</span>
+    <span class="d" style="flex:1;min-width:200px;">${p.deal}</span>
+    <span class="mono" style="font-size:11px;color:var(--accent-2);">${p.model}</span>`;
+  keylessBox.appendChild(row);
+}
+
+/* free provider signup cards */
+const FREE = [
+  { name: "Groq", url: "https://console.groq.com/keys", env: "GROQ_API_KEY", deal: "30 req/min free — Llama 3.3 70B at ~300 tok/s, fastest free chat" },
+  { name: "Cerebras", url: "https://cloud.cerebras.ai", env: "CEREBRAS_API_KEY", deal: "~1M tokens/day free — the fastest inference hardware available" },
+  { name: "Google AI Studio", url: "https://aistudio.google.com/apikey", env: "GOOGLE_API_KEY", deal: "Gemini free tier with 1M-token context" },
+  { name: "Mistral", url: "https://console.mistral.ai", env: "MISTRAL_API_KEY", deal: "~1B tokens/month free incl. Codestral (phone verification)" },
+  { name: "OpenRouter", url: "https://openrouter.ai/keys", env: "OPENROUTER_API_KEY", deal: "50 free requests/day across rotating :free models" },
+  { name: "NVIDIA NIM", url: "https://build.nvidia.com", env: "NVIDIA_API_KEY", deal: "40 req/min free on hosted open models" },
+  { name: "SambaNova", url: "https://cloud.sambanova.ai", env: "SAMBANOVA_API_KEY", deal: "20 req/min free across all models" },
+  { name: "Hugging Face", url: "https://huggingface.co/settings/tokens", env: "HF_TOKEN", deal: "router with small monthly free credit" },
+];
+const freeBox = document.querySelector("#free-providers");
+for (const p of FREE) {
+  const row = document.createElement("a");
+  row.className = "row";
+  row.href = p.url;
+  row.target = "_blank";
+  row.rel = "noopener";
+  row.style.cssText = "display:flex;align-items:center;gap:14px;padding:12px 16px;border-radius:12px;background:rgba(255,255,255,0.03);border:1px solid var(--hairline);transition:background .2s var(--ease);flex-wrap:wrap;";
+  row.onmouseenter = () => row.style.background = "rgba(255,255,255,0.06)";
+  row.onmouseleave = () => row.style.background = "rgba(255,255,255,0.03)";
+  row.innerHTML = `
+    <span class="k" style="min-width:150px;">${p.name}</span>
+    <span class="d" style="flex:1;min-width:200px;">${p.deal}</span>
+    <span class="mono" style="font-size:11px;color:var(--accent-2);">${p.env}</span>
+    <span style="color:var(--faint);font-size:12px;">Get key ↗</span>`;
+  freeBox.appendChild(row);
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,9 @@
+.env
+config.yaml
+data/
+*.exe
+*.tmp
+wormhole.exe~
+.vercel
+
+.vercel

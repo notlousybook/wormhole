@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Usage — Wormhole</title>
+<link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+<div class="nav-wrap">
+  <nav>
+    <a class="brand" href="/"><span class="logo">◉</span>Wormhole</a>
+    <a class="link" href="/">Models</a>
+    <a class="link" href="/playground">Playground</a>
+    <a class="link" href="/keys">Keys</a>
+    <a class="link" href="/usage">Usage</a>
+    <a class="link" href="/docs">Docs</a>
+    <div class="spacer"></div>
+    <div class="status"><span class="dot"></span><span>local gateway</span></div>
+  </nav>
+</div>
+
+<main>
+  <header class="page-head">
+    <div class="eyebrow">Usage</div>
+    <h1>Every call, <em>accounted</em>.</h1>
+    <p class="sub">Tokens, latency and spend across all keys and models.</p>
+  </header>
+
+  <section class="stats section reveal" id="stat-cards"></section>
+
+  <section class="section reveal">
+    <h2>Requests — last 7 days</h2>
+    <div class="bezel"><div class="inner inner-pad" id="chart-wrap"></div></div>
+  </section>
+
+  <section class="section reveal">
+    <h2>By model</h2>
+    <div class="bezel"><div class="inner">
+      <div class="table-wrap"><table id="model-table">
+        <thead><tr><th>Model</th><th>Requests</th><th>Tokens</th><th>Spend</th><th>Avg latency</th><th>Errors</th></tr></thead>
+        <tbody></tbody>
+      </table></div>
+    </div></div>
+  </section>
+
+  <section class="section reveal">
+    <h2>Recent requests</h2>
+    <div class="bezel"><div class="inner">
+      <div class="table-wrap"><table id="recent-table">
+        <thead><tr><th>When</th><th>Model</th><th>Key</th><th>In / out</th><th>Latency</th><th>Status</th></tr></thead>
+        <tbody></tbody>
+      </table></div>
+      <div class="empty-thread" id="recent-empty" hidden><div>No requests yet.<br>Send one from the <a href="/playground" style="color:var(--accent)">playground</a>.</div></div>
+    </div></div>
+  </section>
+</main>
+
+<footer>Wormhole — your models, your keys, one endpoint.</footer>
+
+<script src="/js/common.js"></script>
+<script>
+"use strict";
+async function load() {
+  const [usage, recent] = await Promise.all([
+    api("/usage").catch(() => null),
+    api("/usage/recent").catch(() => []),
+  ]);
+
+  if (usage) {
+    const t = usage.totals;
+    const cards = [
+      { l: "Requests (7d)", v: fmtNum(t.requests) },
+      { l: "Tokens (7d)", v: fmtNum(t.prompt_tokens + t.completion_tokens) },
+      { l: "Spend (7d)", v: t.cost_usd > 0 ? "$" + t.cost_usd.toFixed(4) : "Free", cls: "accent" },
+      { l: "Avg latency", v: t.avg_latency_ms ? t.avg_latency_ms + " ms" : "—", cls: "violet" },
+      { l: "Errors (7d)", v: fmtNum(t.errors), cls: t.errors ? "" : "accent" },
+    ];
+    const box = document.querySelector("#stat-cards");
+    for (const c of cards) {
+      const d = document.createElement("div");
+      d.className = "bezel stat reveal";
+      d.innerHTML = `<div class="inner"><div class="label">${c.l}</div><div class="value ${c.cls || ""}">${c.v}</div></div>`;
+      box.appendChild(d);
+    }
+    renderChart(usage.daily);
+    renderModels(usage.models);
+  }
+
+  renderRecent(recent);
+  initReveals();
+}
+
+function renderChart(daily) {
+  const max = Math.max(1, ...daily.map(d => d.requests));
+  const W = 700, H = 180, pad = 10;
+  const bw = (W - pad * 2) / daily.length;
+  const labels = daily.map(d => d.date.slice(5));
+  let svg = `<svg class="chart-svg" viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+      <linearGradient id="barGrad" x1="0" y1="1" x2="0" y2="0">
+        <stop offset="0%" stop-color="#5a3fd6" stop-opacity="0.5"/>
+        <stop offset="100%" stop-color="#8b7bff" stop-opacity="0.9"/>
+      </linearGradient>
+      <linearGradient id="barGradHover" x1="0" y1="1" x2="0" y2="0">
+        <stop offset="0%" stop-color="#1f9d73" stop-opacity="0.6"/>
+        <stop offset="100%" stop-color="#3ddda8" stop-opacity="1"/>
+      </linearGradient>
+    </defs>`;
+  daily.forEach((d, i) => {
+    const h = d.requests === 0 ? 2 : Math.max(4, (d.requests / max) * (H - 40));
+    const x = pad + i * bw + bw * 0.15;
+    const y = H - 20 - h;
+    svg += `<rect class="bar-rect" x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${(bw * 0.7).toFixed(1)}" height="${h.toFixed(1)}" rx="4" style="transition-delay:${i * 50}ms"><title>${d.date}: ${d.requests} requests, ${fmtNum(d.tokens)} tokens, $${d.cost_usd.toFixed(4)}</title></rect>`;
+    svg += `<text x="${(pad + i * bw + bw / 2).toFixed(1)}" y="${H - 4}" font-size="9" fill="#5d6375" text-anchor="middle">${labels[i]}</text>`;
+    if (d.requests > 0) svg += `<text x="${(pad + i * bw + bw / 2).toFixed(1)}" y="${(y - 4).toFixed(1)}" font-size="9" fill="#9aa0b4" text-anchor="middle">${d.requests}</text>`;
+  });
+  svg += `</svg>`;
+  document.querySelector("#chart-wrap").innerHTML = svg;
+  requestAnimationFrame(() => requestAnimationFrame(() => document.querySelector(".chart-svg").classList.add("in")));
+}
+
+function renderModels(models) {
+  const tbody = document.querySelector("#model-table tbody");
+  tbody.innerHTML = "";
+  if (!models.length) {
+    document.querySelector("#model-table").style.display = "none";
+    return;
+  }
+  for (const m of models) {
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td><a href="/model/${encodeURIComponent(m.model)}" class="mono" style="color:var(--accent)">${escapeHtml(m.model)}</a></td>
+      <td class="num">${fmtNum(m.requests)}</td>
+      <td class="num">${fmtNum(m.tokens)}</td>
+      <td class="num">${m.cost_usd > 0 ? "$" + m.cost_usd.toFixed(4) : "Free"}</td>
+      <td class="num">${m.avg_latency_ms} ms</td>
+      <td class="num">${m.errors || 0}</td>`;
+    tbody.appendChild(tr);
+  }
+}
+
+function renderRecent(recent) {
+  document.querySelector("#recent-empty").hidden = recent.length > 0;
+  const tbody = document.querySelector("#recent-table tbody");
+  for (const r of recent.slice(0, 30)) {
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td>${fmtTimeAgo(r.time)}</td>
+      <td class="mono" style="color:var(--accent)">${escapeHtml(r.model)}</td>
+      <td>${escapeHtml(r.key_name)}</td>
+      <td class="num">${fmtNum(r.prompt_tokens)} / ${fmtNum(r.completion_tokens)}</td>
+      <td class="num">${r.latency_ms} ms</td>
+      <td>${r.status < 400 ? '<span class="tag free">ok</span>' : `<span class="tag paid">${r.status}</span>`}</td>`;
+    tbody.appendChild(tr);
+  }
+}
+
+load();
+</script>
+</body>
+</html>

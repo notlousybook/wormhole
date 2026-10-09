@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Model — Wormhole</title>
+<link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+<div class="nav-wrap">
+  <nav>
+    <a class="brand" href="/"><span class="logo">◉</span>Wormhole</a>
+    <a class="link" href="/">Models</a>
+    <a class="link" href="/playground">Playground</a>
+    <a class="link" href="/keys">Keys</a>
+    <a class="link" href="/usage">Usage</a>
+    <a class="link" href="/docs">Docs</a>
+    <div class="spacer"></div>
+    <div class="status"><span class="dot"></span><span>local gateway</span></div>
+  </nav>
+</div>
+
+<main>
+  <header class="page-head">
+    <a href="/" style="font-size:13px;color:var(--muted);display:inline-flex;align-items:center;gap:6px;">← All models</a>
+    <div style="height:18px"></div>
+    <h1 id="m-name" class="reveal">…</h1>
+    <div class="sub" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:14px;">
+      <span class="provider-badge" id="m-provider"></span>
+      <span id="m-tags" style="display:flex;gap:6px;"></span>
+    </div>
+  </header>
+
+  <section class="stats section reveal" id="m-stats"></section>
+
+  <section class="section reveal">
+    <h2>Call it</h2>
+    <div class="code" id="m-curl">curl http://localhost:8080/v1/chat/completions \
+  -H "Authorization: Bearer sk-wormhole-..." \
+  -H "Content-Type: application/json" \
+  -d '{ "model": "", "messages": [{ "role": "user", "content": "Hello" }] }'</div>
+  </section>
+
+  <section class="section reveal" style="display:flex;gap:12px;flex-wrap:wrap;">
+    <a class="btn" id="m-try" href="/playground">Try in playground <span class="arrow">→</span></a>
+    <button class="btn ghost" id="m-copy-model">Copy model id</button>
+  </section>
+
+  <section class="section reveal" id="recent-section">
+    <h2>Recent calls</h2>
+    <div class="bezel"><div class="inner">
+      <div class="table-wrap"><table id="recent-table">
+        <thead><tr><th>When</th><th>Key</th><th>Tokens in / out</th><th>Latency</th><th>Status</th></tr></thead>
+        <tbody></tbody>
+      </table></div>
+      <div class="empty-thread" id="recent-empty" hidden><div>No calls to this model yet.</div></div>
+    </div></div>
+  </section>
+</main>
+
+<footer>Wormhole — your models, your keys, one endpoint.</footer>
+
+<script src="/js/common.js"></script>
+<script>
+"use strict";
+const modelId = decodeURIComponent(location.pathname.replace(/^\/model\//, "")).replace(/\/$/, "");
+
+async function load() {
+  const models = await api("/api/models");
+  const m = models.find(x => x.id === modelId);
+  if (!m) {
+    $("#m-name").textContent = "Model not found";
+    return;
+  }
+  document.title = m.name + " — Wormhole";
+  $("#m-name").textContent = m.name;
+  $("#m-provider").innerHTML = `${providerDot(m.provider_key_ok)}<span class="mono">${escapeHtml(m.provider)}</span>`;
+  $("#m-tags").innerHTML = (m.tags||[]).map(tagHtml).join("");
+
+  const stats = [
+    { l: "Context", v: m.context_length ? fmtNum(m.context_length) : "—", cls: "" },
+    { l: "Input price", v: m.free ? "Free" : "$" + m.price_in.toFixed(2), cls: m.free ? "accent" : "" },
+    { l: "Output price", v: m.free ? "Free" : "$" + m.price_out.toFixed(2), cls: m.free ? "accent" : "" },
+    { l: "Avg latency", v: m.avg_latency_ms ? m.avg_latency_ms + " ms" : "—", cls: "violet" },
+    { l: "Calls (7d)", v: fmtNum(m.requests_7d), cls: "" },
+  ];
+  const statsEl = $("#m-stats");
+  for (const s of stats) {
+    const d = document.createElement("div");
+    d.className = "bezel stat reveal";
+    d.innerHTML = `<div class="inner"><div class="label">${s.l}</div><div class="value ${s.cls}">${s.v}</div></div>`;
+    statsEl.appendChild(d);
+  }
+
+  const curl = `curl http://${location.host}/v1/chat/completions \\\n  -H "Authorization: Bearer sk-wormhole-..." \\\n  -H "Content-Type: application/json" \\\n  -d '{\n    "model": "${m.id}",\n    "messages": [{ "role": "user", "content": "Hello" }]\n  }'`;
+  $("#m-curl").textContent = curl;
+  $("#m-try").href = "/playground?model=" + encodeURIComponent(m.id);
+  $("#m-copy-model").addEventListener("click", () => copyText(m.id));
+
+  const recent = await api("/usage/recent").catch(() => []);
+  const mine = recent.filter(r => r.model === m.id);
+  if (mine.length === 0) { $("#recent-empty").hidden = false; return; }
+  const tbody = $("#recent-table tbody");
+  tbody.innerHTML = "";
+  for (const r of mine.slice(0, 15)) {
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td>${fmtTimeAgo(r.time)}</td>
+      <td>${escapeHtml(r.key_name)}</td>
+      <td class="num">${fmtNum(r.prompt_tokens)} / ${fmtNum(r.completion_tokens)}</td>
+      <td class="num">${r.latency_ms} ms</td>
+      <td>${r.status < 400 ? '<span class="tag free">ok</span>' : `<span class="tag paid">${r.status}</span>`}</td>`;
+    tbody.appendChild(tr);
+  }
+}
+
+load();
+</script>
+</body>
+</html>

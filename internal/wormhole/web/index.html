@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Models — Wormhole</title>
+<link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+<div class="nav-wrap">
+  <nav>
+    <a class="brand" href="/"><span class="logo">◉</span>Wormhole</a>
+    <a class="link" href="/">Models</a>
+    <a class="link" href="/playground">Playground</a>
+    <a class="link" href="/keys">Keys</a>
+    <a class="link" href="/usage">Usage</a>
+    <a class="link" href="/docs">Docs</a>
+    <div class="spacer"></div>
+    <div class="status"><span class="dot" id="status-dot"></span><span id="status-text">local gateway</span></div>
+  </nav>
+</div>
+
+<main>
+  <header class="page-head reveal">
+    <div class="eyebrow">Self-hosted LLM gateway</div>
+    <h1>One API.<br>Every <em>model</em> you configure.</h1>
+    <p class="sub">Point your app at this router, pick a model, done. Keys live server-side in <span class="mono">.env</span> — never in your code.</p>
+  </header>
+
+  <section class="toolbar reveal">
+    <input type="search" id="search" placeholder="Search models…" autocomplete="off">
+    <div class="chips" id="chips">
+      <button class="chip active" data-filter="all">All</button>
+      <button class="chip" data-filter="free">Free</button>
+      <button class="chip" data-filter="paid">Paid</button>
+      <button class="chip" data-filter="local">Local</button>
+      <button class="chip" data-filter="ready">Ready</button>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="grid" id="model-grid"></div>
+    <div class="empty-thread" id="grid-empty" hidden>
+      <div>No models match.<br>Add some to <span class="mono">config.yaml</span>.</div>
+    </div>
+  </section>
+
+  <section class="section reveal" id="providers-section">
+    <h2>Providers</h2>
+    <div class="bezel"><div class="inner">
+      <div class="table-wrap"><table id="provider-table">
+        <thead><tr><th>Provider</th><th>Base URL</th><th>API key</th><th>Models</th></tr></thead>
+        <tbody></tbody>
+      </table></div>
+    </div></div>
+  </section>
+</main>
+
+<footer>Wormhole — your models, your keys, one endpoint. <a href="/docs">Read the docs</a></footer>
+
+<script src="/js/common.js"></script>
+<script>
+"use strict";
+let models = [];
+let filter = "all";
+let query = "";
+
+async function load() {
+  const [modelsData, overview] = await Promise.all([
+    api("/api/models"),
+    api("/overview").catch(() => null),
+  ]);
+  models = modelsData;
+  renderGrid();
+  if (overview) renderProviders(overview);
+  const dot = $("#status-dot");
+  if (overview) {
+    const unready = overview.providers.filter(p => !p.has_key).length;
+    $("#status-text").textContent = unready ? `${overview.providers.length - unready}/${overview.providers.length} providers ready` : `${overview.providers.length} providers ready`;
+  }
+}
+
+function matches(m) {
+  if (query && !(m.id + " " + m.name + " " + m.provider + " " + (m.tags||[]).join(" ")).toLowerCase().includes(query)) return false;
+  switch (filter) {
+    case "free": return m.free;
+    case "paid": return !m.free;
+    case "local": return (m.tags||[]).includes("local") || m.provider === "ollama" || m.provider === "lmstudio";
+    case "ready": return m.provider_key_ok;
+    default: return true;
+  }
+}
+
+function renderGrid() {
+  const grid = $("#model-grid");
+  grid.innerHTML = "";
+  const list = models.filter(matches);
+  $("#grid-empty").hidden = list.length > 0;
+  for (const m of list) {
+    const card = document.createElement("div");
+    card.className = "bezel model-card reveal";
+    card.innerHTML = `<div class="inner">
+      <div class="top">
+        <div><div class="id">${escapeHtml(m.id)}</div><div class="name">${escapeHtml(m.name)}</div></div>
+        <div class="price"><div class="v ${m.free ? "free" : ""}">${m.free ? "Free" : "$" + (m.price_in||0).toFixed(2)}</div><div class="l">/ Mtok in</div></div>
+      </div>
+      <div class="tags">${(m.tags||[]).map(tagHtml).join("")}</div>
+      <div class="meta">
+        <span class="provider-badge">${providerDot(m.provider_key_ok)}${escapeHtml(m.provider)}</span>
+        ${m.context_length ? `<span class="num">${fmtNum(m.context_length)} ctx</span>` : ""}
+        ${m.requests_7d ? `<span class="num">${fmtNum(m.requests_7d)} calls / 7d</span>` : ""}
+        ${m.avg_latency_ms ? `<span class="num">${m.avg_latency_ms} ms</span>` : ""}
+      </div>
+    </div>`;
+    card.addEventListener("click", () => location.href = "/model/" + m.id);
+    grid.appendChild(card);
+  }
+  initReveals();
+}
+
+function renderProviders(overview) {
+  const tbody = $("#provider-table tbody");
+  tbody.innerHTML = "";
+  for (const p of overview.providers) {
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td><span class="provider-badge">${providerDot(p.has_key)}${escapeHtml(p.name)}</span></td>
+      <td class="mono">${escapeHtml(p.base_url || "built-in")}</td>
+      <td>${p.has_key ? '<span class="tag free">ready</span>' : `<span class="tag paid">set ${escapeHtml(p.key_env || "key")}</span>`}</td>
+      <td class="num">${p.models}</td>`;
+    tbody.appendChild(tr);
+  }
+}
+
+$("#search").addEventListener("input", (e) => { query = e.target.value.trim().toLowerCase(); renderGrid(); });
+$("#chips").addEventListener("click", (e) => {
+  const chip = e.target.closest(".chip");
+  if (!chip) return;
+  filter = chip.dataset.filter;
+  $$("#chips .chip").forEach(c => c.classList.toggle("active", c === chip));
+  renderGrid();
+});
+
+load();
+</script>
+</body>
+</html>
