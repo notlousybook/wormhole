@@ -11,27 +11,33 @@ import (
 )
 
 func main() {
-	// On serverless platforms there is no config file and no listener:
-	// api/index.go's Handler serves everything from the embedded config.
-	// This binary is for local/self-hosted use.
+	var cfg *wormhole.Config
+	var err error
+
 	if wormhole.IsServerless() {
-		return
-	}
+		// Vercel runs this binary as a long-running server and proxies
+		// HTTP to $PORT. Config comes from the embedded free config;
+		// provider keys come from environment variables.
+		cfg, err = wormhole.LoadDefaultConfig()
+		if err != nil {
+			log.Fatalf("config error: %v", err)
+		}
+	} else {
+		configPath := flag.String("config", "config.yaml", "path to config file")
+		flag.Parse()
 
-	configPath := flag.String("config", "config.yaml", "path to config file")
-	flag.Parse()
+		n, err := wormhole.LoadEnv(".env")
+		if err != nil {
+			log.Fatalf("could not read .env: %v", err)
+		}
+		if n > 0 {
+			fmt.Printf("→ loaded %d variable(s) from .env\n", n)
+		}
 
-	n, err := wormhole.LoadEnv(".env")
-	if err != nil {
-		log.Fatalf("could not read .env: %v", err)
-	}
-	if n > 0 {
-		fmt.Printf("→ loaded %d variable(s) from .env\n", n)
-	}
-
-	cfg, err := wormhole.LoadConfig(*configPath)
-	if err != nil {
-		log.Fatalf("config error: %v", err)
+		cfg, err = wormhole.LoadConfig(*configPath)
+		if err != nil {
+			log.Fatalf("config error: %v", err)
+		}
 	}
 
 	keys, err := wormhole.NewKeyStore("data")
@@ -44,10 +50,12 @@ func main() {
 	}
 
 	srv := wormhole.NewServer(cfg, keys, usage)
+
 	addr := fmt.Sprintf("127.0.0.1:%d", cfg.Server.Port)
-	fmt.Printf("\n  %s is running\n", cfg.Server.Name)
-	fmt.Printf("  dashboard  → http://localhost:%d\n", cfg.Server.Port)
-	fmt.Printf("  api        → http://localhost:%d/v1\n", cfg.Server.Port)
+	if port := os.Getenv("PORT"); port != "" {
+		addr = ":" + port
+	}
+	fmt.Printf("\n  %s is running on %s\n", cfg.Server.Name, addr)
 	fmt.Printf("  models: %d   providers: %d   keys: %d\n\n", len(cfg.Models), len(cfg.Providers), keys.Count())
 	if err := http.ListenAndServe(addr, srv.Handler()); err != nil {
 		fmt.Fprintln(os.Stderr, err)
